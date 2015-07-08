@@ -4,13 +4,16 @@
 
 from BaseHTTPServer import BaseHTTPRequestHandler
 import urllib2
-#import urlparse
+import hashlib
 import redis
 
 HOST = '127.0.0.1'
 PORT = 8080
 
 class Handler(BaseHTTPRequestHandler):
+
+    r = redis.StrictRedis(host='localhost', port=6379, db=0)
+    cache_key = ''
 
     def do_GET(self):
         """..."""
@@ -30,11 +33,13 @@ class Handler(BaseHTTPRequestHandler):
     def get_page(self):
         """..."""
 
-        is_cached = self.check_cache()
+        #self.set_redis()
+        self.set_cache_key();
 
-        if is_cached:
+        page = self.fetch_page_from_cache()
+
+        if page:
             print 'cached'
-            page = self.fetch_page_from_cache()
         else:
             print 'not cached'
             page = self.fetch_page_from_url()
@@ -42,13 +47,18 @@ class Handler(BaseHTTPRequestHandler):
 
         return page
 
-    def check_cache(self):
-        """..."""
-        return False
+    def set_cache_key(self):
+        m = hashlib.md5()
+        m.update(self.path)
+        self.cache_key = m.digest()
+        print "cache_key is {}".format(self.cache_key)
+        return
 
     def fetch_page_from_cache(self):
         """..."""
-        return True
+        page = self.r.get(self.cache_key)
+
+        return page
 
     def fetch_page_from_url(self):
         """..."""
@@ -60,7 +70,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def cache_page(self, page):
         """..."""
-        return True
+        self.r.set(self.cache_key, page)
+        return
 
 def main():
     """..."""
