@@ -5,6 +5,7 @@ import urllib2
 
 from BaseHTTPServer import BaseHTTPRequestHandler
 
+
 class Proxy(BaseHTTPRequestHandler):
 
     def __init__(self, cache, *args):
@@ -24,20 +25,20 @@ class Proxy(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
-        return
-
     def get_page(self):
         """
         Get cached page if available, otherwise fetch the URL,
         and then cache it.
         """
 
+        self.cache.manage_cache()
+
         page = self.cache.fetch_page_from_cache(self.path)
 
         if page:
-            print 'cached'
+            print '* cached'
         else:
-            print 'not cached'
+            print '** not cached'
             page = self.fetch_page_from_url()
             self.cache.cache_page(page)
 
