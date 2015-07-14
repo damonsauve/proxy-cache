@@ -1,4 +1,4 @@
-"""A simple proxy cache for web browsers using Python's HTTP server and Redis."""
+"A simple proxy cache for web browsers using Python's HTTP server and Redis."
 
 import sys
 import urllib2
@@ -12,7 +12,7 @@ class Proxy(BaseHTTPRequestHandler):
         BaseHTTPRequestHandler.__init__(self, *args)
 
     def do_GET(self):
-        """Handle HTTP GET requests."""
+        "Handle HTTP GET requests."
 
         if len(self.path) > 0:
             page = self.get_page()
@@ -27,7 +27,10 @@ class Proxy(BaseHTTPRequestHandler):
         return
 
     def get_page(self):
-        """Get cached page if available, otherwise fetch the URL, and then cache it."""
+        """
+        Get cached page if available, otherwise fetch the URL,
+        and then cache it.
+        """
 
         page = self.cache.fetch_page_from_cache(self.path)
 
@@ -41,7 +44,7 @@ class Proxy(BaseHTTPRequestHandler):
         return page
 
     def fetch_page_from_url(self):
-        """Get page from live URL; pass user-agent from the client request."""
+        "Get page from live URL; pass user-agent from the client request."
 
         request = urllib2.Request(self.path)
         request.add_header('User-agent', self.headers['user-agent'])

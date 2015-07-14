@@ -1,7 +1,6 @@
-"""Command-line script to run proxy cache."""
+"Command-line script to run proxy cache."
 
 import sys
-import getopt
 
 from BaseHTTPServer import HTTPServer
 

@@ -1,4 +1,4 @@
-"""Simple page caching with Redis as the data store."""
+"Simple page caching with Redis as the data store."
 
 import os
 import json
@@ -20,21 +20,19 @@ class Cache:
     cache_list       = 'cached-pages'
 
     def __init__(self, host, port):
-        """Initialize Redis connection."""
+        "Initialize Redis connection."
 
         self.redis_host = host
         self.redis_port = port
-
         self.load_configs()
-
         self.connect()
 
     def load_configs(self):
-        """Load JSON config file."""
+        "Load JSON config file."
         self.config = json.load(open(CONF_FILE))
 
     def connect(self):
-        """Connect to Redis instance."""
+        "Connect to Redis instance."
 
         self.r = redis.StrictRedis(
                 host=self.redis_host,
@@ -43,14 +41,14 @@ class Cache:
             )
 
     def fetch_page_from_cache(self, path):
-        """Get cached page."""
+        "Get cached page."
 
         self.set_cache_key(path);
 
         return self.r.get(self.cache_key)
 
     def cache_page(self, page):
-        """Cache the page."""
+        "Cache the page."
 
         self.manage_cache()
 
@@ -70,7 +68,7 @@ class Cache:
         return
 
     def set_cache_key(self, path):
-        """Create cache key name."""
+        "Create cache key name."
 
         m = hashlib.md5(path.encode())
         self.cache_key = self.cache_key_prefix + m.hexdigest()
@@ -80,18 +78,25 @@ class Cache:
         return
 
     def manage_cache(self):
-        """Manage the cache prior to adding to it."""
+        "Manage the cache prior to adding to it."
         check_cache_expires()
-        check_cache_count()
         check_cache_size()
+        check_cache_count()
         return
 
     def check_cache_expires(self):
-        """..."""
+        "..."
+        # maintain a list of cache keys to Unix time; get list and drop keys that have expired.
+        pass
+
+    def check_cache_size(self):
+        "..."
+        # maintain a key-value string in Redis that has total size in bytes and
+        # delete pages from cache when necessary.
         pass
 
     def check_cache_count(self):
-        """Delete pages from cache if the max number of cached pages is reached."""
+        "Delete pages from cache if the max number of cached pages is reached."
 
         # First, check number of elements in cache and delete oldest one if total = max size.
         #
@@ -109,9 +114,5 @@ class Cache:
         return
 
     def get_cache_count(self):
-        """Redis call to number of elements in list."""
+        "Redis call to number of elements in list."
         return self.r.llen(self.cache_list)
-
-    def check_cache_size(self):
-        """..."""
-        pass
