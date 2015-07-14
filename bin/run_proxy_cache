@@ -1,0 +1,35 @@
+"""Command-line script to run proxy cache."""
+
+import sys
+import getopt
+
+from BaseHTTPServer import HTTPServer
+
+from proxy_cache import cache
+from proxy_cache import proxy
+
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+
+PROXY_HOST = 'localhost'
+PROXY_PORT = 8080
+
+class server:
+    def __init__(self, cache):
+        def handler(*args):
+            proxy.Proxy(cache, *args)
+        server = HTTPServer((PROXY_HOST, PROXY_PORT), handler)
+        server.serve_forever()
+
+# Implementation of BaseHTTPRequestHandler breaks encapsulation, so need to run
+# through these hoops to inject the cache class:
+# http://blog.thekondor.net/2013/05/pass-arguments-to-basehttprequesthandler.html
+# http://stackoverflow.com/questions/18444395/basehttprequesthandler-with-custom-instance
+#
+class main:
+    def __init__(self):
+        self.c = cache.Cache(REDIS_HOST, REDIS_PORT)
+        self.s = server(self.c)
+
+if __name__ == '__main__':
+    m = main()
