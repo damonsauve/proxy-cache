@@ -26,11 +26,11 @@ class Cache:
         self.redis_port = port
 
         self.load_configs()
-        print self.config['cacheSizeElements']
 
         self.connect()
 
     def load_configs(self):
+        """Load JSON config file."""
         self.config = json.load(open(CONF_FILE))
 
     def connect(self):
@@ -80,7 +80,7 @@ class Cache:
         return
 
     def manage_cache(self):
-        """..."""
+        """Manage the cache prior to adding to it."""
         check_cache_expires()
         check_cache_count()
         check_cache_size()
@@ -91,7 +91,7 @@ class Cache:
         pass
 
     def check_cache_count(self):
-        """..."""
+        """Delete pages from cache if the max number of cached pages is reached."""
 
         # First, check number of elements in cache and delete oldest one if total = max size.
         #
@@ -109,7 +109,7 @@ class Cache:
         return
 
     def get_cache_count(self):
-        """..."""
+        """Redis call to number of elements in list."""
         return self.r.llen(self.cache_list)
 
     def check_cache_size(self):
