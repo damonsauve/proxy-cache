@@ -1,13 +1,12 @@
 "Simple page caching with Redis as the data store."
 
+import calendar
 import hashlib
 import json
 import os
 import redis
-
-import calendar
+import sys
 import time
-
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 CONF_FILE = os.path.join(ROOT_DIR, 'conf/cache.json')
@@ -22,8 +21,14 @@ class Cache(object):
     # Redis name spaces.
     #
     cache_key_prefix = 'cache-key-'
-    cache_list_count = 'cache-list-count'
-    cache_list_utc = 'cache-list-utc'
+
+    cache_max_utc = 'cache-max-utc'
+    cache_max_count = 'cache-max-count'
+    cache_max_bytes = 'cache-max-bytes'
+    cache_bytes = 'cache-bytes'
+
+    FIELD_PAGE = 'page'
+    FIELD_SIZE = 'size'
 
     def __init__(self, host, port):
         "Initialize Redis connection."
@@ -39,71 +44,43 @@ class Cache(object):
 
     def connect(self):
         "Connect to Redis instance."
-
         self.r = redis.StrictRedis(
                 host=self.redis_host,
                 port=self.redis_port,
                 db=0
             )
 
-    def fetch_page_from_cache(self, path):
-        "Get cached page."
-
-        self.set_cache_key(path);
-
-        return self.r.get(self.cache_key)
-
-    def cache_page(self, page):
-        "Cache the page."
-
-        # Set key and string value.
-        #
-        self.r.set(self.cache_key, page)
-
-        print "** pushing {}".format(self.cache_key)
-
-        utc = self.get_utc_now()
-
-        # Add key to index of Unix timestamps.
-        #
-        self.r.zadd(self.cache_list_utc, utc, self.cache_key)
-
-        # Add key to index of cached items.
-        #
-        self.r.lpush(self.cache_list_count, self.cache_key)
-
-    def get_utc_now(self):
-        "Return current UTC."
-        return calendar.timegm(time.gmtime())
-
-    def set_cache_key(self, path):
-        "Create cache key name."
-        m = hashlib.md5(path.encode())
-        self.cache_key = self.cache_key_prefix + m.hexdigest()
-
     def manage_cache(self):
         "Manage the cache prior to adding to it."
-        self.check_cache_expires()
-        #self.check_cache_size()
+        #self.check_cache_expires()
         #self.check_cache_count()
+        self.check_cache_bytes()
 
     def check_cache_expires(self):
         "Call Redis to fetch and delete members from a list of keys that have expired UTC timestamps."
 
         utc = self.get_utc_now()
         utc_expired = utc - self.config['cacheDuration']
-        keys = self.r.zrangebyscore(self.cache_list_utc, 0, utc_expired)
+        keys = self.r.zrangebyscore(self.cache_max_utc, 0, utc_expired)
 
         if len(keys) > 0:
             for key in keys:
-                self.r.zrem(self.cache_list_utc, key)
+                self.remove_key_from_utc_index(key)
                 self.remove_page_from_cache(key)
 
-    def check_cache_size(self):
-        "..."
-        # maintain a key-value string in Redis that has total size in bytes and
-        # delete pages from cache when necessary.
-        pass
+    def get_utc_now(self):
+        "Return current UTC."
+        return calendar.timegm(time.gmtime())
+
+    def remove_key_from_utc_index(self, key):
+        "Call Redis to delete key from UTC index."
+        self.r.zrem(self.cache_max_utc, key)
+        print "**** deleted UTC key: {}".format(key)
+
+    def remove_page_from_cache(self, key):
+        "Call Redis to delete key from page cache."
+        self.r.delete(key)
+        print "**** deleted cache key: {}".format(key)
 
     def check_cache_count(self):
         "Delete oldest page from cache if the max number of cached pages is reached."
@@ -114,20 +91,99 @@ class Cache(object):
 
         # if total items equals max cache elements, remove oldest item.
         #
-        if cache_count == self.config['cacheSizeElements']:
-            removed = self.r.rpop(self.cache_list_count)
+        if cache_count >= self.config['cacheSizeElements']:
+            removed = self.r.rpop(self.cache_max_count)
             self.remove_page_from_cache(removed)
 
     def get_cache_count(self):
-        "Call redis to fetch number of elements in list."
-        return self.r.llen(self.cache_list_count)
+        "Call Redis to fetch number of elements in list."
+        return self.r.llen(self.cache_max_count)
 
-    def remove_key_from_utc_index(self, key):
-        "Call Redis to delete key form UTC index."
-        self.r.zrem(self.cache_list_utc, key)
-        print "**** deleted UTC key: {}".format(key)
+    def check_cache_bytes(self):
+        "..."
+        # if total cache size exceeds the configured value, delete oldest items.
+        #
+        print "current size of cache={}".format(self.get_cache_bytes())
+        difference = int(self.get_cache_bytes()) - int(self.config['cacheSizeBytes'])
+        print "difference = {}".format(difference)
 
-    def remove_page_from_cache(self, key):
-        "Call Redis to delete key from page cache."
-        self.r.delete(key)
-        print "**** deleted cache key: {}".format(key)
+        while difference > 0:
+            # pop last item off counter list
+            popped_key = self.r.rpop(self.cache_max_count)
+
+            # get bytes of this page
+            bytes_removed = self.r.hget(popped_key, self.FIELD_SIZE )
+
+            print "bytes_removed {}".format(bytes_removed)
+
+            cache_bytes = self.get_cache_bytes()
+
+            new_size =  int(cache_bytes) - int(bytes_removed)
+            print "new size = {} - {} = {}".format(cache_bytes, bytes_removed, new_size)
+            self.r.set(self.cache_bytes, new_size)
+
+            # remove from other lists too
+            self.remove_key_from_utc_index(popped_key)
+            self.remove_page_from_cache(popped_key)
+
+            difference = int(self.get_cache_bytes()) - int(self.config['cacheSizeBytes'])
+            print "difference = {}".format(difference)
+
+    def get_cache_bytes(self):
+        "Call Redis to fetch current cache size."
+        bytes = self.r.get(self.cache_bytes)
+        if bytes == None:
+            return 0
+        else:
+            return bytes
+
+    def fetch_page_from_cache(self, path):
+        "Get cached page."
+        self.set_cache_key(path);
+        return self.r.hget(self.cache_key, self.FIELD_PAGE)
+
+    def set_cache_key(self, path):
+        "Create cache key name."
+        m = hashlib.md5(path.encode())
+        self.cache_key = self.cache_key_prefix + m.hexdigest()
+
+    def cache_page(self, page):
+        "Cache the page."
+
+        print "** cache key {}".format(self.cache_key)
+
+        # add page to hash.
+        #
+        self.add_page_to_hash(page)
+
+        # add page size to hash.
+        #
+        page_size = sys.getsizeof(page)
+        self.add_size_to_hash(page_size)
+
+        # add key to index of Unix timestamps (sorted set score = UTC).
+        #
+        self.add_utc_to_index()
+
+        # add key to index of cached items.
+        #
+        self.add_page_to_count()
+
+        # update total cache size.
+        #
+        cache_bytes = self.get_cache_bytes()
+        new_size = int(page_size) + int(cache_bytes)
+        self.r.set(self.cache_bytes, new_size)
+
+    def add_page_to_hash(self, page):
+        self.r.hset(self.cache_key, self.FIELD_PAGE, page)
+
+    def add_size_to_hash(self, page_size):
+        self.r.hset(self.cache_key, self.FIELD_SIZE, page_size )
+
+    def add_utc_to_index(self):
+        utc = self.get_utc_now()
+        self.r.zadd(self.cache_max_utc, utc, self.cache_key)
+
+    def add_page_to_count(self):
+        self.r.lpush(self.cache_max_count, self.cache_key)
