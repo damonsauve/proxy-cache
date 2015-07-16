@@ -11,6 +11,14 @@ $ cd redis-3.0.1
 $ src/redis-server
 ```
 
+In another Terminal window, run **redis-cli** to monitor incoming requests:
+
+```
+$ src/redis-cli
+127.0.0.1:6379> MONITOR
+OK
+```
+
 Clone and install this repo, then run the start-up command:
 
 ```
