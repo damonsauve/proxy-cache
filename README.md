@@ -10,7 +10,11 @@ $ cd redis-3.0.1
 
 $ src/redis-server
 
-Clone this repo, and run the start-up command:
+Clone and install this repo, then run the start-up command:
+
+$ python setup.py install
+
+$ python setup.py develop
 
 $ cd proxy_cache/bin/
 
