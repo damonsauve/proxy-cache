@@ -7,11 +7,13 @@ Quick start instructions:
 Start up your local Redis on port 6379:
 
 $ cd redis-3.0.1
+
 $ src/redis-server
 
 Clone this repo, and run the start-up command:
 
 $ cd proxy_cache/bin/
+
 $ python ./run_proxy_cache
 
 Open Firefox Preferences, and under Advanced -> Network, change your Connection settings to use:
