@@ -14,21 +14,31 @@ CONF_FILE = os.path.join(ROOT_DIR, 'conf/cache.json')
 
 class Cache(object):
 
-    # Redis key to cached page.
+    # Redis hash containing cached page and page size. key name is combo of prefix
+    # and md5(url).
     #
     cache_key = None
 
-    # Redis name spaces.
+    # prefix for cached-page keys.
     #
     cache_key_prefix = 'cache-key-'
 
-    cache_max_utc = 'cache-max-utc'
-    cache_max_count = 'cache-max-count'
-    cache_max_bytes = 'cache-max-bytes'
-    cache_bytes = 'cache-bytes'
-
+    # field names for Redis cached-page hash.
+    #
     FIELD_PAGE = 'page'
     FIELD_SIZE = 'size'
+
+    # ordered list of cache key, with UTC as score.
+    #
+    cache_max_utc = 'cache-max-utc'
+
+    # Redis list of cached pages used to keep track of oldest cached item.
+    #
+    cache_max_count = 'cache-max-count'
+
+    # Redis string with current size of cache in bytes.
+    #
+    cache_bytes = 'cache-bytes'
 
     def __init__(self, host, port):
         "Initialize Redis connection."
@@ -52,9 +62,9 @@ class Cache(object):
 
     def manage_cache(self):
         "Manage the cache prior to adding to it."
-        #self.check_cache_expires()
-        #self.check_cache_count()
-        self.check_cache_bytes()
+        self.check_cache_expires()
+        self.check_cache_count()
+        #self.check_cache_bytes()
 
     def check_cache_expires(self):
         "Call Redis to fetch and delete members from a list of keys that have expired UTC timestamps."
@@ -67,6 +77,7 @@ class Cache(object):
             for key in keys:
                 self.remove_key_from_utc_index(key)
                 self.remove_page_from_cache(key)
+                print "** expired page {}".format(key)
 
     def get_utc_now(self):
         "Return current UTC."
@@ -75,12 +86,10 @@ class Cache(object):
     def remove_key_from_utc_index(self, key):
         "Call Redis to delete key from UTC index."
         self.r.zrem(self.cache_max_utc, key)
-        print "**** deleted UTC key: {}".format(key)
 
     def remove_page_from_cache(self, key):
         "Call Redis to delete key from page cache."
         self.r.delete(key)
-        print "**** deleted cache key: {}".format(key)
 
     def check_cache_count(self):
         "Delete oldest page from cache if the max number of cached pages is reached."
@@ -89,45 +98,47 @@ class Cache(object):
         #
         cache_count = self.get_cache_count()
 
+        print "** current cached page count {}".format(cache_count)
+
         # if total items equals max cache elements, remove oldest item.
         #
         if cache_count >= self.config['cacheSizeElements']:
             removed = self.r.rpop(self.cache_max_count)
             self.remove_page_from_cache(removed)
+            print "** deleted page {}".format(removed)
 
     def get_cache_count(self):
         "Call Redis to fetch number of elements in list."
         return self.r.llen(self.cache_max_count)
 
     def check_cache_bytes(self):
-        "..."
-        # if total cache size exceeds the configured value, delete oldest items.
-        #
-        print "current size of cache={}".format(self.get_cache_bytes())
-        difference = int(self.get_cache_bytes()) - int(self.config['cacheSizeBytes'])
-        print "difference = {}".format(difference)
+        """
+        If total cache size exceeds the configured value, delete the oldest
+        item until within configuration.
+        """
 
-        while difference > 0:
+        print "*** current cache size {}".format(self.get_cache_bytes())
+
+        while ( int(self.get_cache_bytes()) - int(self.config['cacheSizeBytes']) ) > 0:
+
             # pop last item off counter list
+            #
             popped_key = self.r.rpop(self.cache_max_count)
 
-            # get bytes of this page
+            # get size of this page
+            #
             bytes_removed = self.r.hget(popped_key, self.FIELD_SIZE )
+            print "*** bytes_removed {}".format(bytes_removed)
 
-            print "bytes_removed {}".format(bytes_removed)
-
-            cache_bytes = self.get_cache_bytes()
-
+            cache_bytes = int(self.get_cache_bytes())
             new_size =  int(cache_bytes) - int(bytes_removed)
-            print "new size = {} - {} = {}".format(cache_bytes, bytes_removed, new_size)
+            print "*** new size = {} - {} = {}".format(cache_bytes, bytes_removed, new_size)
             self.r.set(self.cache_bytes, new_size)
 
-            # remove from other lists too
+            # drop key from other lists too
+            #
             self.remove_key_from_utc_index(popped_key)
             self.remove_page_from_cache(popped_key)
-
-            difference = int(self.get_cache_bytes()) - int(self.config['cacheSizeBytes'])
-            print "difference = {}".format(difference)
 
     def get_cache_bytes(self):
         "Call Redis to fetch current cache size."

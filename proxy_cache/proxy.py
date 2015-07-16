@@ -27,7 +27,7 @@ class Proxy(BaseHTTPRequestHandler):
 
     def get_page(self):
         """
-        Get cached page if available, otherwise fetch the URL,
+        Manage cache, then get cached page if available, otherwise fetch the URL,
         and then cache it.
         """
 
@@ -38,7 +38,7 @@ class Proxy(BaseHTTPRequestHandler):
         if page:
             print '* cached'
         else:
-            print '** not cached'
+            print '* not cached'
             page = self.fetch_page_from_url()
             self.cache.cache_page(page)
 
