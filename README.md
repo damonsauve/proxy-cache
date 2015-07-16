@@ -25,3 +25,23 @@ Open Firefox Preferences, and under Advanced -> Network, change your Connection 
 Manual Proxy Configuration: localhost:8080
 
 Now open any web page to start caching and serving cached pages.
+
+Configuration Options
+
+The proxy-cache configuration is set as JSON object in the file:
+
+- proxy_cache/conf/cache.json
+
+The default configs are:
+
+{
+    "cacheDuration": 30,
+    "cacheSizeBytes": 10000,
+    "cacheSizeElements": 9
+}
+
+cacheDuration, in seconds, determines how long a single page is stored in the cache.
+cacheSizeBytes, in bytes, set the maximum size in bytes of all cached objects.
+cacheSizeElements sets the maximum number of cached objects.
+
+For each setting, when the maximum value is reached, the oldest item in the cache is purged.
