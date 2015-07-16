@@ -22,7 +22,9 @@ $ python ./run_proxy_cache
 
 Open Firefox Preferences, and under Advanced -> Network, change your Connection settings to use:
 
+```
 Manual Proxy Configuration: localhost:8080
+```
 
 Now open any web page to start caching and serving cached pages.
 
