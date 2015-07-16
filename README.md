@@ -44,8 +44,10 @@ The default configs are:
 }
 ```
 
-cacheDuration, in seconds, determines how long a single page is stored in the cache.
-cacheSizeBytes, in bytes, set the maximum size in bytes of all cached objects.
-cacheSizeElements sets the maximum number of cached objects.
+**cacheDuration**, in seconds, determines how long a single page is stored in the cache.
+
+**cacheSizeBytes**, in bytes, set the maximum size in bytes of all cached objects.
+
+**cacheSizeElements** sets the maximum number of cached objects.
 
 For each setting, when the maximum value is reached, the oldest item in the cache is purged.
