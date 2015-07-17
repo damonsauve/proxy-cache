@@ -64,7 +64,7 @@ class Cache(object):
         "Manage the cache prior to adding to it."
         self.check_cache_expires()
         self.check_cache_count()
-        #self.check_cache_bytes()
+        self.check_cache_bytes()
 
     def check_cache_expires(self):
         "Call Redis to fetch and delete members from a list of keys that have expired UTC timestamps."
@@ -111,6 +111,9 @@ class Cache(object):
         "Call Redis to fetch number of elements in list."
         return self.r.llen(self.cache_max_count)
 
+    # This section needs additional refactoring, or perhaps because of the
+    # complexity, create a factory class.
+    #
     def check_cache_bytes(self):
         """
         If total cache size exceeds the configured value, delete the oldest
